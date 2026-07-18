@@ -1,0 +1,111 @@
+Project MotoRent {
+  database_type: 'PostgreSQL'
+  Note: 'Skema Database Utama untuk Aplikasi Penyewaan Motor (MotoRent Malang)'
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name varchar [not null]
+  email varchar [unique, not null]
+  password_hash varchar [not null]
+  phone varchar
+  role varchar [not null, default: 'customer', note: "'admin' or 'customer'"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table user_verifications {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: - users.id, note: 'One-to-one verification profile per user']
+  identity_type varchar [not null, note: "'KTP', 'SIM', or 'Passport'"]
+  identity_number varchar [not null]
+  identity_image_url varchar [not null]
+  selfie_image_url varchar [note: 'Optional selfie with ID']
+  status varchar [not null, default: 'pending', note: "'pending', 'verified', 'rejected'"]
+  verified_by uuid [ref: > users.id, note: 'Admin who verified this identity']
+  verified_at timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table motors {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name varchar [not null]
+  brand varchar [not null, note: "e.g., 'Honda', 'Yamaha'"]
+  type varchar [not null, note: "'Matic', 'Manual', 'Sport'"]
+  year int [not null]
+  cc int [not null, note: 'Engine capacity']
+  transmission varchar [not null, note: "'Automatic' or 'Manual'"]
+  license_plate varchar [unique, not null]
+  price_per_day decimal [not null]
+  image_url varchar [not null]
+  status varchar [not null, default: 'available', note: "'available', 'rented', 'maintenance'"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table motor_facilities {
+  id uuid [pk, default: `gen_random_uuid()`]
+  motor_id uuid [ref: > motors.id, note: 'Many-to-one relationship to motors']
+  facility_name varchar [not null, note: "e.g., '2 Helm SNI', 'Jas Hujan'"]
+}
+
+Table bookings {
+  id uuid [pk, default: `gen_random_uuid()`]
+  booking_code varchar [unique, not null, note: 'User-friendly tracking code like MR-84729']
+  user_id uuid [not null, ref: > users.id]
+  motor_id uuid [not null, ref: > motors.id]
+  start_date datetime [not null]
+  end_date datetime [not null]
+  pickup_location varchar [not null]
+  dropoff_location varchar [not null]
+  total_days int [not null]
+  total_price decimal [not null]
+  status varchar [not null, default: 'pending_payment', note: "'pending_payment', 'awaiting_verification', 'confirmed', 'active', 'completed', 'cancelled'"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table payments {
+  id uuid [pk, default: `gen_random_uuid()`]
+  booking_id uuid [not null, ref: - bookings.id, note: 'One-to-one payment per booking']
+  amount decimal [not null]
+  payment_method varchar [not null, note: "'Bank Transfer' or 'QRIS'"]
+  proof_image_url varchar [not null, note: 'Uploaded by user before invoice generation']
+  status varchar [not null, default: 'pending', note: "'pending', 'verified', 'rejected'"]
+  verified_by uuid [ref: > users.id, note: 'Admin who verified the payment']
+  verified_at timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table handovers {
+  id uuid [pk, default: `gen_random_uuid()`]
+  booking_id uuid [not null, ref: > bookings.id]
+  type varchar [not null, note: "'pickup' or 'dropoff'"]
+  location varchar [not null]
+  scheduled_time datetime [not null]
+  actual_time datetime
+  status varchar [not null, default: 'pending', note: "'pending', 'completed'"]
+  handled_by uuid [ref: > users.id, note: 'Admin who handled the handover']
+  condition_notes text [note: 'Notes on motor condition during handover']
+  created_at timestamp [default: `now()`]
+}
+
+Table testimonials {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  booking_id uuid [not null, ref: - bookings.id]
+  rating int [not null, note: '1 to 5 stars']
+  text text [not null]
+  is_featured boolean [not null, default: false, note: 'If true, appears in the frontpage stack']
+  created_at timestamp [default: `now()`]
+}
+
+Table settings {
+  id serial [pk]
+  key varchar [unique, not null, note: "'bank_account_number', 'qris_image_url', 'contact_whatsapp'"]
+  value text [not null]
+  description varchar
+  updated_at timestamp [default: `now()`]
+}
