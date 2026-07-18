@@ -31,6 +31,7 @@ async function seed() {
   }).select().single();
 
   if (userError) console.error(userError);
+  if (!user || !user2 || !user3) throw new Error("Failed to insert users");
 
   // Insert motors
   const motors = [
@@ -74,6 +75,7 @@ async function seed() {
 
   const { data: insertedMotors, error: motorError } = await supabase.from('motors').insert(motors).select();
   if (motorError) console.error(motorError);
+  if (!insertedMotors) throw new Error("Failed to insert motors");
 
   // Insert dummy bookings so we can insert testimonials
   const { data: b1 } = await supabase.from('bookings').insert({
@@ -114,6 +116,8 @@ async function seed() {
     total_price: 75000,
     status: 'completed'
   }).select().single();
+  
+  if (!b1 || !b2 || !b3) throw new Error("Failed to insert bookings");
 
   // Insert Testimonials
   const testimonials = [
