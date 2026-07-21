@@ -62,7 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Sidebar */}
-      <aside className={`w-64 bg-surface border-r border-border-color flex-col overflow-y-auto fixed md:static top-20 left-0 h-[calc(100vh-80px)] z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:flex ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`w-64 bg-surface border-r border-border-color flex-col overflow-y-auto fixed md:static top-20 left-0 h-[calc(100vh-80px)] z-40 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:flex ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-border-color flex justify-between items-center">
           <h2 className="text-xl font-heading font-bold text-primary">Admin Panel</h2>
           <button className="md:hidden text-text-muted hover:text-white" onClick={() => setIsSidebarOpen(false)}>

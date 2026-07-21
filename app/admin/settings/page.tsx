@@ -48,6 +48,31 @@ export default function AdminSettingsPage() {
     });
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Ukuran file terlalu besar. Maksimal 2MB.");
+        return;
+      }
+      try {
+        const base64 = await fileToBase64(file);
+        setSettings({ ...settings, qrisImage: base64 });
+      } catch (err) {
+        alert("Gagal memproses gambar");
+      }
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaved(false);
@@ -159,17 +184,19 @@ export default function AdminSettingsPage() {
               </div>
               
               <div className="w-full">
-                <label className="text-sm font-medium mb-2 block">URL Gambar QRIS Baru</label>
-                <input 
-                  type="url" 
-                  name="qrisImage"
-                  value={settings.qrisImage || ''}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  className="w-full bg-surface border border-border-color p-3 rounded-xl text-text-main focus:outline-none focus:border-primary" 
-                />
+                <label className="text-sm font-medium mb-2 block">Upload Gambar QRIS Baru</label>
+                <div className="border-2 border-dashed border-border-color rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-surface transition-colors text-text-muted relative overflow-hidden group">
+                  <Upload size={24} className="mb-2 text-text-muted group-hover:text-primary transition-colors" />
+                  <span className="text-sm font-medium group-hover:text-primary transition-colors">Pilih File Foto QRIS</span>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  />
+                </div>
                 <p className="text-xs text-text-muted mt-2">
-                  Masukkan tautan (URL) gambar QRIS Anda. Karena penyimpanan cloud belum diatur, gunakan tautan gambar yang sudah diunggah di internet (misal: Imgur, dll).
+                  Format yang didukung: JPG, PNG, WEBP. Maksimal 2MB. Gambar akan otomatis dikonversi ke format yang aman untuk database.
                 </p>
               </div>
             </div>
