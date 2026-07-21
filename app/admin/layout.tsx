@@ -3,12 +3,43 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Users, Activity, Calendar, LogOut, Key, Map, Settings, Menu, X, Star
+  Users, Activity, Calendar, LogOut, Key, Map, Settings, Menu, X, Star, Loader2
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ROLE } from '@/constants';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  useEffect(() => {
+    const sessionStr = localStorage.getItem('user_session');
+    if (!sessionStr) {
+      router.replace('/auth');
+      return;
+    }
+
+    try {
+      const user = JSON.parse(sessionStr);
+      if (user.role !== ROLE.ADMIN) {
+        router.replace('/');
+        return;
+      }
+      setIsAuthorized(true);
+    } catch (e) {
+      router.replace('/auth');
+    }
+  }, [router]);
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex h-[calc(100vh-80px)] items-center justify-center bg-background w-full">
+        <Loader2 className="animate-spin text-primary w-12 h-12" />
+      </div>
+    );
+  }
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: Activity },
