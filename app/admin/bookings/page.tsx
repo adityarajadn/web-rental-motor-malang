@@ -31,6 +31,8 @@ export default function AdminBookingsPage() {
   // State untuk modal
   const [modalConfig, setModalConfig] = useState<{ type: 'detail' | 'edit' | 'cancel' | null, bookingId: string | null }>({ type: null, bookingId: null });
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [activeHandoverNotes, setActiveHandoverNotes] = useState<any>(null);
+  const [loadingNotes, setLoadingNotes] = useState(false);
   
   // State untuk checklist pengembalian
   const [returnChecklist, setReturnChecklist] = useState({
@@ -53,7 +55,7 @@ export default function AdminBookingsPage() {
           users ( name, phone ),
           motors ( id, name ),
           payments ( proof_image_url ),
-          handovers ( type, condition_notes )
+          handovers ( type )
         `)
         .order('created_at', { ascending: false });
       
@@ -180,7 +182,25 @@ export default function AdminBookingsPage() {
                     <td className="py-4">{getStatusBadge(booking.status)}</td>
                     <td className="py-4 text-right">
                       <button 
-                        onClick={() => setModalConfig({ type: 'detail', bookingId: booking.id })}
+                        onClick={async () => {
+                          setModalConfig({ type: 'detail', bookingId: booking.id });
+                          setLoadingNotes(true);
+                          setActiveHandoverNotes(null);
+                          // Fetch condition notes on demand to prevent timeout
+                          const { data: handoverData } = await supabase
+                            .from('handovers')
+                            .select('condition_notes')
+                            .eq('booking_id', booking.id)
+                            .eq('type', 'pickup')
+                            .single();
+                          
+                          if (handoverData?.condition_notes) {
+                            try {
+                              setActiveHandoverNotes(JSON.parse(handoverData.condition_notes));
+                            } catch(e) {}
+                          }
+                          setLoadingNotes(false);
+                        }}
                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${booking.status === 'awaiting_verification' ? 'bg-primary text-white hover:bg-primary/90' : 'bg-surface border border-border-color text-text-main hover:bg-surface-hover'}`}
                       >
                         {booking.status === 'awaiting_verification' ? 'Konfirmasi Booking' : 'Lihat Detail'}
@@ -249,45 +269,41 @@ export default function AdminBookingsPage() {
                   </div>
                 )}
                 
-                {(() => {
-                  const pickupHandover = activeBooking?.handovers?.find(h => h.type === 'pickup');
-                  if (!pickupHandover?.condition_notes) return null;
-                  try {
-                    const notes = JSON.parse(pickupHandover.condition_notes);
-                    if (!notes.ktp_image && !notes.handover_image) return null;
-                    return (
-                      <div className="mb-6">
-                        <p className="text-sm font-medium mb-3">Dokumen Check-In</p>
-                        <div className="grid grid-cols-2 gap-4">
-                          {notes.ktp_image && (
-                            <div>
-                              <p className="text-xs text-text-muted mb-1">KTP Customer</p>
-                              <div className="w-full h-32 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={notes.ktp_image} alt="KTP" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(notes.ktp_image)} />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
-                                  <span className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
-                                </div>
+                {loadingNotes ? (
+                  <div className="flex justify-center my-4"><Loader2 className="animate-spin text-primary" size={24} /></div>
+                ) : (
+                  activeHandoverNotes && (activeHandoverNotes.ktp_image || activeHandoverNotes.handover_image) && (
+                    <div className="mb-6">
+                      <p className="text-sm font-medium mb-3">Dokumen Check-In</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        {activeHandoverNotes.ktp_image && (
+                          <div>
+                            <p className="text-xs text-text-muted mb-1">KTP Customer</p>
+                            <div className="w-full h-32 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={activeHandoverNotes.ktp_image} alt="KTP" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(activeHandoverNotes.ktp_image)} />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
+                                <span className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
                               </div>
                             </div>
-                          )}
-                          {notes.handover_image && (
-                            <div>
-                              <p className="text-xs text-text-muted mb-1">Foto Serah Terima</p>
-                              <div className="w-full h-32 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={notes.handover_image} alt="Serah Terima" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(notes.handover_image)} />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
-                                  <span className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
-                                </div>
+                          </div>
+                        )}
+                        {activeHandoverNotes.handover_image && (
+                          <div>
+                            <p className="text-xs text-text-muted mb-1">Foto Serah Terima</p>
+                            <div className="w-full h-32 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={activeHandoverNotes.handover_image} alt="Serah Terima" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(activeHandoverNotes.handover_image)} />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
+                                <span className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
                               </div>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                    );
-                  } catch(e) { return null; }
-                })()}
+                    </div>
+                  )
+                )}
 
                 {activeBooking?.status === 'active' && (
                   <div className="mb-6 space-y-4">
