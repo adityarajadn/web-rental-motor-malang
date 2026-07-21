@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, User, Phone, ArrowRight, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { AuthService } from '@/services/auth.service';
+import { ROLE } from '@/constants';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,21 +22,14 @@ export default function AuthPage() {
     setLoading(true);
     setError('');
 
-    if (isLogin) {
-      const { data, error: queryError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
-      
-      if (queryError || !data) {
-        setError('Email belum terdaftar atau terjadi kesalahan jaringan.');
-      } else {
-        // Mock password check for demo purposes
+    try {
+      if (isLogin) {
+        const data = await AuthService.login(email);
+        
         if (data.password_hash === password || password === 'dummy') {
           localStorage.setItem('user_session', JSON.stringify(data));
           
-          if (data.role === 'admin') {
+          if (data.role === ROLE.ADMIN) {
             router.push('/admin');
           } else {
             router.push('/');
@@ -43,22 +37,15 @@ export default function AuthPage() {
         } else {
           setError('Password yang Anda masukkan salah.');
         }
-      }
-    } else {
-      const { data: newUser, error: insertError } = await supabase.from('users').insert({
-        name,
-        email,
-        phone,
-        password_hash: password, // Using raw password just for mock purposes
-        role: 'customer'
-      }).select().single();
-      
-      if (insertError || !newUser) {
-        setError('Gagal mendaftar: ' + (insertError?.message || 'Unknown error'));
       } else {
+        const newUser = await AuthService.register(name, email, phone, password);
         localStorage.setItem('user_session', JSON.stringify(newUser));
         router.push('/');
       }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
     setLoading(false);
   };

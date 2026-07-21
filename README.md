@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MotoRent Malang
 
-## Getting Started
+Platform penyewaan motor terbaik dan terpercaya di Malang Raya. Website ini memudahkan pelanggan untuk menyewa motor secara online dengan fitur unggulan seperti verifikasi dokumen otomatis, manajemen armada, sistem denda keterlambatan, dan dashboard admin yang intuitif.
 
-First, run the development server:
+## Tech Stack
+- **Framework:** Next.js 16 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Icons:** Lucide React
+- **Database / Backend:** Supabase (PostgreSQL, Auth, Storage)
 
+## Prasyarat
+- Node.js versi 18 atau lebih baru.
+- Akun Supabase dengan project yang sudah di-setup.
+
+## Cara Install
+1. Clone repository ini:
+   ```bash
+   git clone https://github.com/adityarajadn/web-rental-motor-malang.git
+   cd web-rental-motor-malang
+   ```
+2. Install dependensi:
+   ```bash
+   npm install
+   ```
+
+## Environment Variables
+Buat file `.env.local` di root folder proyek Anda. Berikut adalah variabel yang dibutuhkan:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://[PROJECT_ID].supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[YOUR_ANON_KEY]
+```
+> **Catatan:** Jangan pernah menyertakan `SERVICE_ROLE_KEY` di variabel lingkungan publik.
+
+## Cara Menjalankan Proyek
+Untuk menjalankan proyek di *local development environment*:
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Buka browser dan arahkan ke `http://localhost:3000`.
+
+## Struktur Folder
+```text
+├── app/                  # Routing utama Next.js (App Router)
+│   ├── admin/            # Dashboard khusus Admin
+│   ├── auth/             # Halaman Login & Register
+│   ├── fleet/            # Katalog Motor
+│   └── my-bookings/      # Riwayat pesanan pelanggan
+├── components/           # Komponen UI yang reusable
+├── constants/            # Berisi magic numbers dan enum konstan
+├── lib/                  # Konfigurasi library eksternal (Supabase, dll)
+├── services/             # Abstraksi pemanggilan API (Pemisahan Logic)
+└── types/                # Definisi Interface dan Type TypeScript
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Konvensi Branch dan Commit
+Semua anggota tim wajib mengikuti aturan berikut:
+- **Branch Naming:** `fitur/nama-fitur`, `bugfix/nama-bug`, `hotfix/darurat`
+- **Commit Message:** 
+  Gunakan format [Conventional Commits](https://www.conventionalcommits.org/):
+  - `feat: menambahkan login system`
+  - `fix: memperbaiki error di dashboard`
+  - `refactor: memisahkan logic dari ui`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Cara Deployment (Vercel)
+1. Push kode Anda ke repository GitHub.
+2. Login ke Vercel dan buat *New Project*.
+3. Import repository ini.
+4. Di bagian **Environment Variables**, tambahkan `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+5. Klik **Deploy**.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Daftar Anggota Tim
+- **Raja** (Lead Developer)
+- *Tim Dev Lainnya*
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+Dibuat dengan ❤️ untuk proyek rental motor Malang.

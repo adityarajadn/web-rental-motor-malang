@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { Clock, AlertTriangle } from "lucide-react";
+import { PENALTY, APP_CONFIG } from "@/constants";
 
 export default function PenaltyTimer({ endDateStr }: { endDateStr: string }) {
   const [timeLeft, setTimeLeft] = useState<{ isLate: boolean, days: number, hours: number, minutes: number, seconds: number, penalty: number } | null>(null);
 
   useEffect(() => {
-    // Deadline is strictly 09:00 WIB on the end_date
+    // Deadline is strictly from config on the end_date
     const datePart = endDateStr.split('T')[0];
-    const deadline = new Date(`${datePart}T09:00:00+07:00`).getTime();
+    const deadline = new Date(`${datePart}T${APP_CONFIG.DEADLINE_HOUR}`).getTime();
 
     const calculateTime = () => {
       const now = new Date().getTime();
@@ -21,8 +22,7 @@ export default function PenaltyTimer({ endDateStr }: { endDateStr: string }) {
         isLate = true;
         diff = Math.abs(diff);
         const minutesLate = Math.floor(diff / (1000 * 60));
-        // Penalty is 2000 for every 15 minutes late
-        penalty = Math.floor(minutesLate / 15) * 2000;
+        penalty = Math.floor(minutesLate / PENALTY.INTERVAL_MINUTES) * PENALTY.LATE_FEE_PER_INTERVAL;
       }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
