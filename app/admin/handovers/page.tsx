@@ -11,6 +11,16 @@ export default function AdminHandoversPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [modalConfig, setModalConfig] = useState<{ type: 'checkout' | 'checkin' | null, data: any }>({ type: null, data: null });
+  const [returnChecklist, setReturnChecklist] = useState({
+    helmet: false,
+    stnk: false,
+    key: false,
+    condition: false
+  });
+  
+  // State untuk file upload saat check-in (pickup)
+  const [ktpFile, setKtpFile] = useState<File | null>(null);
+  const [handoverFile, setHandoverFile] = useState<File | null>(null);
 
   useEffect(() => {
     async function fetchHandovers() {
@@ -25,7 +35,7 @@ export default function AdminHandoversPage() {
           end_date,
           status,
           users ( name ),
-          motors ( name, license_plate )
+          motors ( id, name, license_plate )
         `)
         .in('status', ['confirmed', 'active'])
         .order('start_date', { ascending: true });
@@ -47,13 +57,50 @@ export default function AdminHandoversPage() {
     if (modalConfig.type === 'checkout') {
       // Pickup complete -> booking becomes 'active'
       await supabase.from('bookings').update({ status: 'active' }).eq('id', modalConfig.data.id);
+      
+      // Save images as base64 in handovers table
+      if (ktpFile && handoverFile) {
+        const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+        
+        try {
+          const ktpBase64 = await toBase64(ktpFile);
+          const handoverBase64 = await toBase64(handoverFile);
+          
+          await supabase.from('handovers').insert({
+            booking_id: modalConfig.data.id,
+            type: 'pickup',
+            location: modalConfig.data.pickup_location,
+            scheduled_time: modalConfig.data.start_date,
+            actual_time: new Date().toISOString(),
+            status: 'completed',
+            condition_notes: JSON.stringify({ ktp_image: ktpBase64, handover_image: handoverBase64 })
+          });
+        } catch (e) {
+          console.error("Failed to save photos to handovers", e);
+        }
+      }
+      
       setCheckouts(prev => prev.filter(c => c.id !== modalConfig.data.id));
     } else if (modalConfig.type === 'checkin') {
       // Dropoff complete -> booking becomes 'completed'
       await supabase.from('bookings').update({ status: 'completed' }).eq('id', modalConfig.data.id);
+      
+      const motorId = modalConfig.data.motors?.id;
+      if (motorId) {
+        await supabase.from('motors').update({ status: 'available' }).eq('id', motorId);
+      }
+
       setCheckins(prev => prev.filter(c => c.id !== modalConfig.data.id));
     }
     setModalConfig({ type: null, data: null });
+    setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
+    setKtpFile(null);
+    setHandoverFile(null);
   };
 
   return (
@@ -175,15 +222,25 @@ export default function AdminHandoversPage() {
       {modalConfig.type && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" 
-          onClick={() => setModalConfig({ type: null, data: null })}
+          onClick={() => {
+            setModalConfig({ type: null, data: null });
+            setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
+            setKtpFile(null);
+            setHandoverFile(null);
+          }}
         >
           <div 
-            className="bg-surface border border-border-color rounded-2xl p-6 max-w-md w-full shadow-2xl relative" 
+            className="bg-surface border border-border-color rounded-2xl p-6 max-w-md w-full shadow-2xl relative max-h-[90vh] overflow-y-auto" 
             onClick={e => e.stopPropagation()}
           >
             <button 
               className="absolute top-4 right-4 text-text-muted hover:text-text-main"
-              onClick={() => setModalConfig({ type: null, data: null })}
+              onClick={() => {
+                setModalConfig({ type: null, data: null });
+                setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
+                setKtpFile(null);
+                setHandoverFile(null);
+              }}
             >
               <X size={20} />
             </button>
@@ -203,19 +260,118 @@ export default function AdminHandoversPage() {
                 <div className="flex justify-between"><span className="text-text-muted">Nama</span> <span className="font-medium">{modalConfig.data?.users?.name || 'User'}</span></div>
                 <div className="flex justify-between"><span className="text-text-muted">Booking</span> <span className="font-medium text-primary font-mono">#{modalConfig.data?.booking_code}</span></div>
                 <div className="flex justify-between"><span className="text-text-muted">Waktu</span> <span className="font-medium">{modalConfig.data && new Date(modalConfig.type === 'checkout' ? modalConfig.data.start_date : modalConfig.data.end_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} • 09:00 WIB</span></div>
-                <div className="flex justify-between"><span className="text-text-muted">Motor</span> <span className="font-medium">{modalConfig.data?.motors?.name} ({modalConfig.data?.motors?.license_plate})</span></div>
-                <div className="flex justify-between"><span className="text-text-muted">Lokasi</span> <span className="font-medium">{modalConfig.type === 'checkout' ? modalConfig.data?.pickup_location : modalConfig.data?.dropoff_location}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Motor</span> <span className="font-medium text-right">{modalConfig.data?.motors?.name} ({modalConfig.data?.motors?.license_plate})</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Lokasi</span> <span className="font-medium text-right">{modalConfig.type === 'checkout' ? modalConfig.data?.pickup_location : modalConfig.data?.dropoff_location}</span></div>
               </div>
+
+              {/* Form Upload & Ceklis untuk Check-in (Pickup) */}
+              {modalConfig.type === 'checkout' && (
+                <div className="mb-6 p-4 border border-border-color rounded-xl bg-surface text-left space-y-5">
+                  <div>
+                    <label className="text-sm font-bold block mb-2">Upload KTP Customer</label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => setKtpFile(e.target.files?.[0] || null)}
+                          className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                      </div>
+                      {ktpFile && (
+                        <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-border-color">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={URL.createObjectURL(ktpFile)} alt="Preview KTP" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold block mb-2">Upload Foto Serah Terima</label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => setHandoverFile(e.target.files?.[0] || null)}
+                          className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                      </div>
+                      {handoverFile && (
+                        <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-border-color">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={URL.createObjectURL(handoverFile)} alt="Preview Serah Terima" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <p className="text-sm font-bold mb-3">Ceklis Kelengkapan Check-In</p>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.helmet} onChange={(e) => setReturnChecklist(prev => ({...prev, helmet: e.target.checked}))} />
+                        <span className="text-sm font-medium">Helm (2 buah) lengkap</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.stnk} onChange={(e) => setReturnChecklist(prev => ({...prev, stnk: e.target.checked}))} />
+                        <span className="text-sm font-medium">STNK asli diserahkan</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.key} onChange={(e) => setReturnChecklist(prev => ({...prev, key: e.target.checked}))} />
+                        <span className="text-sm font-medium">Kunci motor diserahkan normal</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.condition} onChange={(e) => setReturnChecklist(prev => ({...prev, condition: e.target.checked}))} />
+                        <span className="text-sm font-medium">Kondisi motor prima (telah dicek)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modalConfig.type === 'checkin' && (
+                <div className="mb-6 p-4 border border-border-color rounded-xl bg-surface text-left">
+                  <p className="text-sm font-bold mb-3">Ceklis Kelengkapan Pengembalian</p>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.helmet} onChange={(e) => setReturnChecklist(prev => ({...prev, helmet: e.target.checked}))} />
+                      <span className="text-sm font-medium">Helm (2 buah) kembali lengkap</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.stnk} onChange={(e) => setReturnChecklist(prev => ({...prev, stnk: e.target.checked}))} />
+                      <span className="text-sm font-medium">STNK asli ada & tidak hilang</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.key} onChange={(e) => setReturnChecklist(prev => ({...prev, key: e.target.checked}))} />
+                      <span className="text-sm font-medium">Kunci motor diserahkan normal</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.condition} onChange={(e) => setReturnChecklist(prev => ({...prev, condition: e.target.checked}))} />
+                      <span className="text-sm font-medium">Kondisi motor sesuai saat Check-In</span>
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button 
                   className="flex-1 bg-surface border border-border-color hover:bg-surface-hover py-3 rounded-xl font-bold transition-colors"
-                  onClick={() => setModalConfig({ type: null, data: null })}
+                  onClick={() => {
+                    setModalConfig({ type: null, data: null });
+                    setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
+                    setKtpFile(null);
+                    setHandoverFile(null);
+                  }}
                 >
                   Batal
                 </button>
                 <button 
-                  className={`flex-1 text-white py-3 rounded-xl font-bold transition-colors ${modalConfig.type === 'checkout' ? 'bg-primary hover:bg-primary-hover' : 'bg-secondary hover:bg-secondary/90'}`}
+                  className={`flex-1 text-white py-3 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${modalConfig.type === 'checkout' ? 'bg-primary hover:bg-primary-hover' : 'bg-secondary hover:bg-secondary/90'}`}
+                  disabled={
+                    (modalConfig.type === 'checkin' && (!returnChecklist.helmet || !returnChecklist.stnk || !returnChecklist.key || !returnChecklist.condition)) ||
+                    (modalConfig.type === 'checkout' && (!returnChecklist.helmet || !returnChecklist.stnk || !returnChecklist.key || !returnChecklist.condition || !ktpFile || !handoverFile))
+                  }
                   onClick={handleProcess}
                 >
                   Ya, Proses Sekarang

@@ -18,41 +18,6 @@ CREATE TABLE users (
 );
 
 -- =====================================================
--- USER VERIFICATIONS
--- =====================================================
-
-CREATE TABLE user_verifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    user_id UUID UNIQUE NOT NULL,
-    identity_type VARCHAR(20) NOT NULL
-        CHECK (identity_type IN ('KTP','SIM','Passport')),
-
-    identity_number VARCHAR(100) NOT NULL,
-    identity_image_url TEXT NOT NULL,
-    selfie_image_url TEXT,
-
-    status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending','verified','rejected')),
-
-    verified_by UUID,
-    verified_at TIMESTAMP,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP,
-
-    CONSTRAINT fk_verification_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_verification_admin
-        FOREIGN KEY (verified_by)
-        REFERENCES users(id)
-        ON DELETE SET NULL
-);
-
--- =====================================================
 -- MOTORS
 -- =====================================================
 
@@ -81,23 +46,6 @@ CREATE TABLE motors (
 
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP
-);
-
--- =====================================================
--- MOTOR FACILITIES
--- =====================================================
-
-CREATE TABLE motor_facilities (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    motor_id UUID NOT NULL,
-
-    facility_name VARCHAR(100) NOT NULL,
-
-    CONSTRAINT fk_motor_facility
-        FOREIGN KEY (motor_id)
-        REFERENCES motors(id)
-        ON DELETE CASCADE
 );
 
 -- =====================================================
@@ -164,21 +112,13 @@ CREATE TABLE payments (
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending','verified','rejected')),
 
-    verified_by UUID,
-    verified_at TIMESTAMP,
-
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP,
 
     CONSTRAINT fk_payment_booking
         FOREIGN KEY (booking_id)
         REFERENCES bookings(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_payment_admin
-        FOREIGN KEY (verified_by)
-        REFERENCES users(id)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
 );
 
 -- =====================================================
@@ -201,8 +141,6 @@ CREATE TABLE handovers (
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending','completed')),
 
-    handled_by UUID,
-
     condition_notes TEXT,
 
     created_at TIMESTAMP DEFAULT NOW(),
@@ -210,12 +148,7 @@ CREATE TABLE handovers (
     CONSTRAINT fk_handover_booking
         FOREIGN KEY (booking_id)
         REFERENCES bookings(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_handover_admin
-        FOREIGN KEY (handled_by)
-        REFERENCES users(id)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
 );
 
 -- =====================================================

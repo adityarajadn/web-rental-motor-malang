@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, MoreVertical, X, AlertTriangle, Info, Edit3, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import PenaltyTimer from '@/components/PenaltyTimer';
 
 type Booking = {
   id: string;
@@ -13,9 +14,10 @@ type Booking = {
   users: { 
     name: string; 
     phone: string | null;
-    user_verifications?: { identity_image_url: string; selfie_image_url: string }[];
   } | null;
-  motors: { name: string } | null;
+  motors: { id: string; name: string } | null;
+  payments: { proof_image_url: string }[] | { proof_image_url: string } | null;
+  handovers: { type: string, condition_notes: string | null }[] | null;
 };
 
 export default function AdminBookingsPage() {
@@ -28,6 +30,15 @@ export default function AdminBookingsPage() {
   
   // State untuk modal
   const [modalConfig, setModalConfig] = useState<{ type: 'detail' | 'edit' | 'cancel' | null, bookingId: string | null }>({ type: null, bookingId: null });
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  
+  // State untuk checklist pengembalian
+  const [returnChecklist, setReturnChecklist] = useState({
+    helmet: false,
+    stnk: false,
+    key: false,
+    condition: false
+  });
 
   useEffect(() => {
     async function fetchBookings() {
@@ -39,8 +50,10 @@ export default function AdminBookingsPage() {
           start_date,
           end_date,
           status,
-          users ( name, phone, user_verifications!fk_verification_user ( identity_image_url, selfie_image_url ) ),
-          motors ( name )
+          users ( name, phone ),
+          motors ( id, name ),
+          payments ( proof_image_url ),
+          handovers ( type, condition_notes )
         `)
         .order('created_at', { ascending: false });
       
@@ -84,6 +97,7 @@ export default function AdminBookingsPage() {
       setBookings(prev => prev.map(b => b.id === modalConfig.bookingId ? { ...b, status: 'cancelled' } : b));
     }
     setModalConfig({ type: null, bookingId: null });
+    setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
   };
 
   return (
@@ -162,42 +176,15 @@ export default function AdminBookingsPage() {
                     <td className="py-4 font-mono text-primary">#{booking.booking_code}</td>
                     <td className="py-4 font-medium">{booking.users?.name || 'User'}</td>
                     <td className="py-4">{booking.motors?.name || 'Motor'}</td>
-                    <td className="py-4">{new Date(booking.start_date).toLocaleDateString('id-ID')} - {new Date(booking.end_date).toLocaleDateString('id-ID')}</td>
+                    <td className="py-4 text-sm whitespace-nowrap">{new Date(booking.start_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})} • 09:00 WIB<br/>s/d<br/>{new Date(booking.end_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})} • 09:00 WIB</td>
                     <td className="py-4">{getStatusBadge(booking.status)}</td>
-                    <td className="py-4 text-right relative">
+                    <td className="py-4 text-right">
                       <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdown(activeDropdown === booking.id ? null : booking.id);
-                        }}
-                        className={`text-text-muted hover:text-primary transition-colors p-2 rounded-lg hover:bg-surface-hover ${activeDropdown === booking.id ? 'bg-surface-hover text-primary' : ''}`}
+                        onClick={() => setModalConfig({ type: 'detail', bookingId: booking.id })}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${booking.status === 'awaiting_verification' ? 'bg-primary text-white hover:bg-primary/90' : 'bg-surface border border-border-color text-text-main hover:bg-surface-hover'}`}
                       >
-                        <MoreVertical size={20}/>
+                        {booking.status === 'awaiting_verification' ? 'Konfirmasi Booking' : 'Lihat Detail'}
                       </button>
-                      
-                      {activeDropdown === booking.id && (
-                        <div className="absolute right-0 top-12 w-48 bg-surface border border-border-color rounded-xl shadow-xl z-50 py-2 overflow-hidden animate-fade-in text-left">
-                          <button 
-                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-hover transition-colors font-medium text-text-main" 
-                            onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setModalConfig({ type: 'detail', bookingId: booking.id }); }}
-                          >
-                            Lihat Detail
-                          </button>
-                          <button 
-                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-hover transition-colors font-medium text-text-main" 
-                            onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setModalConfig({ type: 'edit', bookingId: booking.id }); }}
-                          >
-                            Edit Booking
-                          </button>
-                          <div className="h-px w-full bg-border-color my-1"></div>
-                          <button 
-                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary/10 text-secondary transition-colors font-medium" 
-                            onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setModalConfig({ type: 'cancel', bookingId: booking.id }); }}
-                          >
-                            Batalkan Pesanan
-                          </button>
-                        </div>
-                      )}
                     </td>
                   </tr>
                 ))
@@ -230,7 +217,11 @@ export default function AdminBookingsPage() {
               <X size={20} />
             </button>
 
-            {modalConfig.type === 'detail' && (
+            {modalConfig.type === 'detail' && (() => {
+              const activeBooking = bookings.find(b => b.id === modalConfig.bookingId);
+              const payments = activeBooking?.payments;
+              const proofImage = Array.isArray(payments) ? payments[0]?.proof_image_url : payments?.proof_image_url;
+              return (
               <div>
                 <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-4">
                   <Info size={24} />
@@ -239,58 +230,122 @@ export default function AdminBookingsPage() {
                 <p className="text-text-muted mb-6">Berikut adalah informasi lengkap mengenai pesanan ini.</p>
                 
                 <div className="space-y-3 bg-background rounded-xl p-4 border border-border-color mb-6">
-                  <div className="flex justify-between"><span className="text-text-muted">Nama</span> <span className="font-medium">{bookings.find(b => b.id === modalConfig.bookingId)?.users?.name || '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">No. HP</span> <span className="font-medium">{bookings.find(b => b.id === modalConfig.bookingId)?.users?.phone || '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">Motor</span> <span className="font-medium">{bookings.find(b => b.id === modalConfig.bookingId)?.motors?.name || '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">Waktu</span> <span className="font-medium">{new Date(bookings.find(b => b.id === modalConfig.bookingId)?.start_date || '').toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})} • 09:00 WIB</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">Nama</span> <span className="font-medium">{activeBooking?.users?.name || '-'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">No. HP</span> <span className="font-medium">{activeBooking?.users?.phone || '-'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">Motor</span> <span className="font-medium">{activeBooking?.motors?.name || '-'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">Waktu</span> <span className="font-medium">{new Date(activeBooking?.start_date || '').toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})} • 09:00 WIB</span></div>
                 </div>
 
-                <div className="mb-6">
-                  <h3 className="font-bold mb-3">Dokumen Pelanggan</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-background rounded-xl p-3 border border-border-color text-center">
-                      <p className="text-xs text-text-muted mb-2 font-bold uppercase tracking-wider">Foto KTP</p>
-                      <div className="w-full h-24 bg-surface rounded-lg flex items-center justify-center border border-dashed border-border-color overflow-hidden">
-                        {bookings.find(b => b.id === modalConfig.bookingId)?.users?.user_verifications?.[0]?.identity_image_url ? (
-                          <span className="text-xs text-primary font-bold break-all p-2">{bookings.find(b => b.id === modalConfig.bookingId)?.users?.user_verifications?.[0]?.identity_image_url}</span>
-                        ) : (
-                          <span className="text-xs text-text-muted">Belum ada</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="bg-background rounded-xl p-3 border border-border-color text-center">
-                      <p className="text-xs text-text-muted mb-2 font-bold uppercase tracking-wider">Selfie KTP</p>
-                      <div className="w-full h-24 bg-surface rounded-lg flex items-center justify-center border border-dashed border-border-color overflow-hidden">
-                        {bookings.find(b => b.id === modalConfig.bookingId)?.users?.user_verifications?.[0]?.selfie_image_url ? (
-                          <span className="text-xs text-primary font-bold break-all p-2">{bookings.find(b => b.id === modalConfig.bookingId)?.users?.user_verifications?.[0]?.selfie_image_url}</span>
-                        ) : (
-                          <span className="text-xs text-text-muted">Belum ada</span>
-                        )}
+                {proofImage && (
+                  <div className="mb-6">
+                    <p className="text-sm font-medium mb-2">Bukti Pembayaran</p>
+                    <div className="w-full h-48 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={proofImage} alt="Bukti Pembayaran" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(proofImage)} />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
+                        <span className="bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
+                
+                {(() => {
+                  const pickupHandover = activeBooking?.handovers?.find(h => h.type === 'pickup');
+                  if (!pickupHandover?.condition_notes) return null;
+                  try {
+                    const notes = JSON.parse(pickupHandover.condition_notes);
+                    if (!notes.ktp_image && !notes.handover_image) return null;
+                    return (
+                      <div className="mb-6">
+                        <p className="text-sm font-medium mb-3">Dokumen Check-In</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          {notes.ktp_image && (
+                            <div>
+                              <p className="text-xs text-text-muted mb-1">KTP Customer</p>
+                              <div className="w-full h-32 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={notes.ktp_image} alt="KTP" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(notes.ktp_image)} />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
+                                  <span className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {notes.handover_image && (
+                            <div>
+                              <p className="text-xs text-text-muted mb-1">Foto Serah Terima</p>
+                              <div className="w-full h-32 rounded-xl overflow-hidden bg-black/5 border border-border-color relative group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={notes.handover_image} alt="Serah Terima" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" onClick={() => setFullscreenImage(notes.handover_image)} />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none flex items-center justify-center">
+                                  <span className="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Perbesar</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  } catch(e) { return null; }
+                })()}
+
+                {activeBooking?.status === 'active' && (
+                  <div className="mb-6 space-y-4">
+                    <PenaltyTimer endDateStr={activeBooking.end_date} />
+                    
+                    <div className="p-4 border border-border-color rounded-xl bg-surface">
+                      <p className="text-sm font-bold mb-3">Ceklis Kelengkapan Pengembalian</p>
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.helmet} onChange={(e) => setReturnChecklist(prev => ({...prev, helmet: e.target.checked}))} />
+                          <span className="text-sm font-medium">Helm (2 buah) kembali lengkap</span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.stnk} onChange={(e) => setReturnChecklist(prev => ({...prev, stnk: e.target.checked}))} />
+                          <span className="text-sm font-medium">STNK asli ada & tidak hilang</span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.key} onChange={(e) => setReturnChecklist(prev => ({...prev, key: e.target.checked}))} />
+                          <span className="text-sm font-medium">Kunci motor diserahkan normal</span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" checked={returnChecklist.condition} onChange={(e) => setReturnChecklist(prev => ({...prev, condition: e.target.checked}))} />
+                          <span className="text-sm font-medium">Kondisi motor sesuai saat Check-In</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-3 mt-6">
                   {bookings.find(b => b.id === modalConfig.bookingId)?.status === 'awaiting_verification' && (
                     <button 
                       className="flex-1 bg-accent hover:bg-accent/90 text-white py-3 rounded-xl font-bold transition-colors"
                       onClick={async () => {
-                        await supabase.from('bookings').update({ status: 'active' }).eq('id', modalConfig.bookingId);
-                        setBookings(prev => prev.map(b => b.id === modalConfig.bookingId ? { ...b, status: 'active' } : b));
+                        await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', modalConfig.bookingId);
+                        setBookings(prev => prev.map(b => b.id === modalConfig.bookingId ? { ...b, status: 'confirmed' } : b));
                         setModalConfig({ type: null, bookingId: null });
                       }}
                     >
-                      Verifikasi & Check In (Ambil Motor)
+                      Konfirmasi Booking
                     </button>
                   )}
-                  {bookings.find(b => b.id === modalConfig.bookingId)?.status === 'active' && (
+                  {activeBooking?.status === 'active' && (
                     <button 
-                      className="flex-1 bg-secondary hover:bg-secondary/90 text-white py-3 rounded-xl font-bold transition-colors"
+                      className="flex-1 bg-secondary hover:bg-secondary/90 text-white py-3 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!returnChecklist.helmet || !returnChecklist.stnk || !returnChecklist.key || !returnChecklist.condition}
                       onClick={async () => {
                         await supabase.from('bookings').update({ status: 'completed' }).eq('id', modalConfig.bookingId);
+                        
+                        // Kembalikan status motor ke available
+                        const motorId = activeBooking.motors?.id;
+                        if (motorId) {
+                           await supabase.from('motors').update({ status: 'available' }).eq('id', motorId);
+                        }
+
                         setBookings(prev => prev.map(b => b.id === modalConfig.bookingId ? { ...b, status: 'completed' } : b));
                         setModalConfig({ type: null, bookingId: null });
+                        setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
                       }}
                     >
                       Check Out (Kembali Motor)
@@ -298,13 +353,17 @@ export default function AdminBookingsPage() {
                   )}
                   <button 
                     className="flex-1 bg-surface border border-border-color py-3 rounded-xl font-bold hover:bg-surface-hover"
-                    onClick={() => setModalConfig({ type: null, bookingId: null })}
+                    onClick={() => {
+                      setModalConfig({ type: null, bookingId: null });
+                      setReturnChecklist({ helmet: false, stnk: false, key: false, condition: false });
+                    }}
                   >
                     Tutup
                   </button>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {modalConfig.type === 'edit' && (
               <div>
@@ -381,6 +440,27 @@ export default function AdminBookingsPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+      {/* Fullscreen Image Lightbox */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white hover:text-primary transition-colors bg-black/50 p-2 rounded-full"
+            onClick={() => setFullscreenImage(null)}
+          >
+            <X size={24} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src={fullscreenImage} 
+            alt="Fullscreen Proof" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

@@ -11,6 +11,15 @@ export default function AdminFleetPage() {
   
   const [modalConfig, setModalConfig] = useState<{ type: 'add' | 'edit' | 'delete' | null, data: any }>({ type: null, data: null });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedStnk, setSelectedStnk] = useState<File | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'motor' | 'stnk') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (type === 'motor') setSelectedImage(file);
+      else setSelectedStnk(file);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('Semua');
@@ -47,22 +56,35 @@ export default function AdminFleetPage() {
     }
     setModalConfig({ type: null, data: null });
     setSelectedImage(null);
+    setSelectedStnk(null);
   };
 
   const openModal = (type: 'add' | 'edit' | 'delete', data: any) => {
     setModalConfig({ type, data });
     setSelectedImage(null);
+    setSelectedStnk(null);
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    // Default image if none provided. Normally you would upload to Supabase Storage.
     let imageUrl = modalConfig.data?.image_url || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&q=80';
     if (selectedImage) {
-      // Just a placeholder since we don't have a storage bucket set up yet
-      imageUrl = URL.createObjectURL(selectedImage);
+      try {
+        imageUrl = await fileToBase64(selectedImage);
+      } catch (err) {
+        console.error("Gagal membaca file gambar:", err);
+      }
     }
 
     const newMotor = {
@@ -91,6 +113,7 @@ export default function AdminFleetPage() {
     }
     setModalConfig({ type: null, data: null });
     setSelectedImage(null);
+    setSelectedStnk(null);
   };
 
   return (
@@ -270,15 +293,41 @@ export default function AdminFleetPage() {
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">URL Foto Motor</label>
-                    <input 
-                      type="url"
-                      name="image_url"
-                      defaultValue={modalConfig.data?.image_url || ''} 
-                      placeholder="https://..."
-                      className="w-full bg-background border border-border-color p-3 rounded-xl text-text-main focus:outline-none focus:border-primary" 
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Foto Motor</label>
+                      <div className="flex items-center justify-center w-full">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border-color rounded-xl cursor-pointer bg-background hover:bg-surface transition-colors relative overflow-hidden">
+                          {(selectedImage || modalConfig.data?.image_url) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={selectedImage ? URL.createObjectURL(selectedImage) : modalConfig.data?.image_url} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Upload className="w-8 h-8 mb-2 text-text-muted" />
+                              <p className="text-xs text-text-muted">Klik untuk upload foto motor</p>
+                            </div>
+                          )}
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, 'motor')} />
+                        </label>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Foto STNK</label>
+                      <div className="flex items-center justify-center w-full">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border-color rounded-xl cursor-pointer bg-background hover:bg-surface transition-colors relative overflow-hidden">
+                          {(selectedStnk || modalConfig.data?.stnk_url) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={selectedStnk ? URL.createObjectURL(selectedStnk) : modalConfig.data?.stnk_url} alt="Preview STNK" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Upload className="w-8 h-8 mb-2 text-text-muted" />
+                              <p className="text-xs text-text-muted">Klik untuk upload STNK</p>
+                            </div>
+                          )}
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, 'stnk')} />
+                        </label>
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

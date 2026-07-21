@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Users, Activity, Calendar, LogOut, Key, Map, Settings, Menu, X 
+  Users, Activity, Calendar, LogOut, Key, Map, Settings, Menu, X, Star
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +15,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Manajemen Booking', path: '/admin/bookings', icon: Calendar },
     { name: 'Serah Terima & Kembali', path: '/admin/handovers', icon: Key },
     { name: 'Armada Motor', path: '/admin/fleet', icon: Map },
-    { name: 'Verifikasi User', path: '/admin/verifications', icon: Users },
+    { name: 'Manajemen Testimoni', path: '/admin/testimonials', icon: Star },
     { name: 'Pengaturan', path: '/admin/settings', icon: Settings },
   ];
 
@@ -58,11 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border-color">
-          <Link href="/" className="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-secondary rounded-xl font-medium transition-colors">
-            <LogOut size={20} /> Keluar ke Website
-          </Link>
-        </div>
+
       </aside>
 
       {/* Main Content Area */}

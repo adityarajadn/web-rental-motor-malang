@@ -7,15 +7,15 @@ export const revalidate = 0;
 
 export default async function Home() {
   const { data: featuredMotors } = await supabase
-    .from('motors')
-    .select('*')
-    .eq('status', 'available')
+    .from("motors")
+    .select("*")
+    .eq("status", "available")
     .limit(3);
 
   const { data: testimonialsData } = await supabase
-    .from('testimonials')
-    .select('id, text, rating, users(name)')
-    .eq('is_featured', true);
+    .from("testimonials")
+    .select("id, text, rating, users(name)")
+    .eq("is_featured", true);
 
   const motorsList = featuredMotors || [];
   const testisOnPage = testimonialsData || [];
@@ -59,42 +59,82 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Quick Search Widget */}
-      <section className="w-full max-w-5xl mx-auto px-4 -mt-20 relative z-20">
-        <div className="glass-card rounded-3xl p-6 md:p-8 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex-1 w-full">
-            <label className="text-sm text-text-muted mb-2 block font-medium">
-              Lokasi Pengambilan
-            </label>
-            <div className="flex items-center bg-surface-hover rounded-xl px-4 py-3 border border-border-color">
-              <MapPin className="text-primary mr-3" size={20} />
-              <select className="bg-transparent border-none text-text-main w-full focus:outline-none appearance-none">
-                <option value="suhat">Cabang Suhat</option>
-                <option value="stasiun">Cabang Stasiun Malang</option>
-                <option value="bandara">Bandara Abdul Rachman Saleh</option>
-              </select>
+      {/* About Us Preview & Testimonials */}
+      <section
+        id="testimoni"
+        className="w-full max-w-7xl mx-auto px-4 py-24 border-t border-border-color"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+          <div>
+            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-6">
+              Tentang <span className="text-primary">MotoRent</span>
+            </h2>
+            <p className="text-text-muted text-lg leading-relaxed mb-8">
+              Lebih dari 1 tahun kami telah melayani ribuan wisatawan dan
+              mahasiswa di Malang. Komitmen kami adalah menyediakan transportasi
+              roda dua yang aman, nyaman, dan terjangkau untuk setiap
+              petualangan Anda.
+            </p>
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div>
+                <div className="text-3xl font-bold text-secondary mb-1">
+                  10k+
+                </div>
+                <div className="text-sm text-text-muted font-medium">
+                  Pelanggan Puas
+                </div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-accent mb-1">50+</div>
+                <div className="text-sm text-text-muted font-medium">
+                  Unit Motor
+                </div>
+              </div>
             </div>
           </div>
-          <div className="flex-1 w-full">
-            <label className="text-sm text-text-muted mb-2 block font-medium">
-              Tanggal Mulai
-            </label>
-            <div className="flex items-center bg-surface-hover rounded-xl px-4 py-3 border border-border-color">
-              <Calendar className="text-primary mr-3" size={20} />
-              <input
-                type="date"
-                className="bg-transparent border-none text-text-main w-full focus:outline-none"
-                style={{ colorScheme: "dark" }}
-              />
-            </div>
+          <TestimonialStack initialTestimonials={testisOnPage} />
+        </div>
+      </section>
+
+      {/* Why Choose Us */}
+      <section className="w-full bg-surface py-24 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-4">
+              Kenapa Memilih <span className="text-gradient">Kami?</span>
+            </h2>
           </div>
-          <div className="w-full md:w-auto mt-6 md:mt-7">
-            <Link
-              href="/fleet"
-              className="btn-primary w-full px-8 py-3.5 rounded-xl text-md font-semibold flex items-center justify-center"
-            >
-              Cari Motor
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-8 rounded-3xl bg-background border border-border-color hover:border-primary/50 transition-colors group">
+              <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
+                <Zap size={28} />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Proses Cepat & Mudah</h3>
+              <p className="text-text-muted">
+                Booking online dalam hitungan menit. Tanpa ribet, motor langsung
+                siap digunakan.
+              </p>
+            </div>
+            <div className="p-8 rounded-3xl bg-background border border-border-color hover:border-secondary/50 transition-colors group">
+              <div className="w-14 h-14 rounded-2xl bg-secondary/20 flex items-center justify-center mb-6 text-secondary group-hover:scale-110 transition-transform">
+                <ShieldCheck size={28} />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Aman & Terpercaya</h3>
+              <p className="text-text-muted">
+                Motor terawat dengan servis rutin, dilengkapi asuransi dan helm
+                berkualitas standar SNI.
+              </p>
+            </div>
+            <div className="p-8 rounded-3xl bg-background border border-border-color hover:border-accent/50 transition-colors group">
+              <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform">
+                <MapPin size={28} />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Layanan Antar Jemput</h3>
+              <p className="text-text-muted">
+                Kami siap mengantar dan menjemput motor di stasiun, terminal,
+                atau hotel Anda di Malang.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -165,89 +205,6 @@ export default async function Home() {
           >
             Lihat Semua Armada <ArrowRight size={18} />
           </Link>
-        </div>
-      </section>
-
-      {/* About Us Preview */}
-      <section className="w-full max-w-7xl mx-auto px-4 py-24 border-t border-border-color">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-          <div>
-            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-6">
-              Tentang <span className="text-primary">MotoRent</span>
-            </h2>
-            <p className="text-text-muted text-lg leading-relaxed mb-8">
-              Lebih dari 5 tahun kami telah melayani ribuan wisatawan dan
-              mahasiswa di Malang. Komitmen kami adalah menyediakan transportasi
-              roda dua yang aman, nyaman, dan terjangkau untuk setiap
-              petualangan Anda.
-            </p>
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              <div>
-                <div className="text-3xl font-bold text-secondary mb-1">
-                  10k+
-                </div>
-                <div className="text-sm text-text-muted font-medium">
-                  Pelanggan Puas
-                </div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-accent mb-1">50+</div>
-                <div className="text-sm text-text-muted font-medium">
-                  Unit Motor
-                </div>
-              </div>
-            </div>
-            <Link
-              href="/about"
-              className="text-primary hover:text-primary-dark font-semibold inline-flex items-center gap-2"
-            >
-              Lebih Lanjut Tentang Kami <ArrowRight size={18} />
-            </Link>
-          </div>
-          <TestimonialStack initialTestimonials={testisOnPage} />
-        </div>
-      </section>
-
-      {/* Why Choose Us */}
-      <section className="w-full bg-surface py-24 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 relative z-10">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-4">
-              Kenapa Memilih <span className="text-gradient">Kami?</span>
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-8 rounded-3xl bg-background border border-border-color hover:border-primary/50 transition-colors group">
-              <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
-                <Zap size={28} />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Proses Cepat & Mudah</h3>
-              <p className="text-text-muted">
-                Booking online dalam hitungan menit. Tanpa ribet, motor langsung
-                siap digunakan.
-              </p>
-            </div>
-            <div className="p-8 rounded-3xl bg-background border border-border-color hover:border-secondary/50 transition-colors group">
-              <div className="w-14 h-14 rounded-2xl bg-secondary/20 flex items-center justify-center mb-6 text-secondary group-hover:scale-110 transition-transform">
-                <ShieldCheck size={28} />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Aman & Terpercaya</h3>
-              <p className="text-text-muted">
-                Motor terawat dengan servis rutin, dilengkapi asuransi dan helm
-                berkualitas standar SNI.
-              </p>
-            </div>
-            <div className="p-8 rounded-3xl bg-background border border-border-color hover:border-accent/50 transition-colors group">
-              <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform">
-                <MapPin size={28} />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Layanan Antar Jemput</h3>
-              <p className="text-text-muted">
-                Kami siap mengantar dan menjemput motor di stasiun, terminal,
-                atau hotel Anda di Malang.
-              </p>
-            </div>
-          </div>
         </div>
       </section>
     </div>

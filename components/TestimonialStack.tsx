@@ -1,34 +1,23 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 
-// Fallback mock data if DB is empty
-const defaultTestimonials = [
-  {
-    id: '1',
-    text: "Pelayanan luar biasa, motor sangat terawat!",
-    users: { name: "Budi, Wisatawan Jakarta" },
-    image: "https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    id: '2',
-    text: "Sangat mudah dan cepat, proses booking ga ribet sama sekali.",
-    users: { name: "Siti, Mahasiswa UM" },
-    image: "https://images.unsplash.com/photo-1449426468159-d96dbf08f19f?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    id: '3',
-    text: "Motornya bersih, helm wangi, pokoknya mantap pol!",
-    users: { name: "Andi, Traveler Bandung" },
-    image: "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=800&auto=format&fit=crop"
-  }
-];
+// Removed defaultTestimonials
 
 export default function TestimonialStack({ initialTestimonials = [] }: { initialTestimonials?: any[] }) {
-  // Use DB data if available and has items, else use default
-  const startingData = initialTestimonials.length > 0 ? initialTestimonials.map((t, i) => ({
-    ...t,
-    image: defaultTestimonials[i % defaultTestimonials.length].image // fallback image since DB doesn't have it
-  })) : defaultTestimonials;
+  const startingData = (initialTestimonials || []).map((t, i) => {
+    let cleanText = t.text;
+    let customImage = null;
+    if (t.text && typeof t.text === 'string' && t.text.includes('|||IMAGE|||')) {
+      const parts = t.text.split('|||IMAGE|||');
+      cleanText = parts[0];
+      customImage = parts.length > 1 ? parts[1] : null;
+    }
+    return {
+      ...t,
+      text: cleanText,
+      image: customImage // if null, we render a gradient below
+    };
+  });
 
   const [cards, setCards] = useState(startingData);
   const [animating, setAnimating] = useState(false);
@@ -55,6 +44,17 @@ export default function TestimonialStack({ initialTestimonials = [] }: { initial
 
     return () => clearInterval(interval);
   }, [handleNext]);
+
+  if (cards.length === 0) {
+    return (
+      <div className="h-[400px] w-full flex items-center justify-center bg-surface border border-border-color rounded-3xl p-8 text-center">
+        <div>
+          <p className="text-xl font-bold mb-2">Belum Ada Ulasan</p>
+          <p className="text-text-muted">Jadilah yang pertama menyewa dan bagikan pengalaman Anda!</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -101,14 +101,19 @@ export default function TestimonialStack({ initialTestimonials = [] }: { initial
               transitionDuration: '500ms'
             }}
           >
-            <img
-              src={card.image}
-              alt={card.users?.name || 'Customer'}
-              className="w-full h-full object-cover"
-              draggable="false"
-            />
+            {card.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={card.image}
+                alt={card.users?.name || 'Customer'}
+                className="w-full h-full object-cover absolute inset-0"
+                draggable="false"
+              />
+            ) : (
+              <div className="w-full h-full absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20"></div>
+            )}
             
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-6 md:p-8">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10 flex items-end p-6 md:p-8">
               <div className="glass w-full p-5 rounded-2xl border-white/20 backdrop-blur-md">
                 <p className="font-bold text-lg mb-1 text-text-main">
                   "{card.text}"

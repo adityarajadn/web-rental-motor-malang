@@ -79,12 +79,8 @@ export default function BookingForm({ motorId }: BookingFormProps) {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     date.setHours(12,0,0,0);
     
-    if (showCalendar === 'start' && startDate) {
-      return startDate.getTime() === date.getTime();
-    }
-    if (showCalendar === 'end' && endDate) {
-      return endDate.getTime() === date.getTime();
-    }
+    if (startDate && startDate.getTime() === date.getTime()) return true;
+    if (endDate && endDate.getTime() === date.getTime()) return true;
     
     // Highlight range visually if both selected
     if (startDate && endDate) {
@@ -110,7 +106,7 @@ export default function BookingForm({ motorId }: BookingFormProps) {
 
   const formatDate = (date: Date | null) => {
     if (!date) return 'Pilih Tanggal';
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) + ' • 09:00 WIB';
   };
   
   const toYYYYMMDD = (date: Date | null) => {
@@ -197,6 +193,15 @@ export default function BookingForm({ motorId }: BookingFormProps) {
         </div>
       </div>
 
+      {startDate && endDate && (
+        <div className="flex justify-between items-center bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 animate-fade-in">
+          <span className="text-sm font-medium">Durasi Sewa</span>
+          <span className="font-bold text-primary">
+            {Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))} Hari
+          </span>
+        </div>
+      )}
+
       {/* Custom Calendar Popup */}
       {showCalendar && (
         <div ref={calendarRef} className="absolute z-50 mt-2 w-full glass-card rounded-2xl p-4 border border-border-color shadow-2xl animate-fade-in top-20">
@@ -224,7 +229,9 @@ export default function BookingForm({ motorId }: BookingFormProps) {
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
-              const disabled = isPast(day) && (!startDate || showCalendar === 'start');
+              const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+              dateObj.setHours(12,0,0,0);
+              const disabled = isPast(day) || (showCalendar === 'end' && startDate !== null && dateObj < startDate);
               const selected = isSelected(day);
               const inRange = isRangeMiddle(day);
               

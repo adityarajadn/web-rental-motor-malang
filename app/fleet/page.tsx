@@ -65,8 +65,11 @@ export default function FleetPage() {
   const sortedMotors = [...filteredMotors].sort((a, b) => {
     if (sortOrder === 'price_asc') return Number(a.price_per_day) - Number(b.price_per_day);
     if (sortOrder === 'price_desc') return Number(b.price_per_day) - Number(a.price_per_day);
-    if (sortOrder === 'name_asc') return a.name.localeCompare(b.name);
-    if (sortOrder === 'name_desc') return b.name.localeCompare(a.name);
+    if (sortOrder === 'available_first') {
+      if (a.computedStatus === 'available' && b.computedStatus !== 'available') return -1;
+      if (a.computedStatus !== 'available' && b.computedStatus === 'available') return 1;
+      return 0;
+    }
     return 0; // default (terbaru)
   });
   return (
@@ -102,8 +105,7 @@ export default function FleetPage() {
                   { value: 'default', label: 'Terbaru ditambahkan' },
                   { value: 'price_asc', label: 'Harga: Rendah ke Tinggi' },
                   { value: 'price_desc', label: 'Harga: Tinggi ke Rendah' },
-                  { value: 'name_asc', label: 'Nama: A ke Z' },
-                  { value: 'name_desc', label: 'Nama: Z ke A' },
+                  { value: 'available_first', label: 'Yang Tersedia' },
                 ].map(option => (
                   <button
                     key={option.value}
